@@ -10,6 +10,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Не тратим ресурсы на пуш бота (создаётся шагом «Commit formatting
+    # changes»). Пуш тега, даже если он указывает на бот-коммит, имеет
+    # github.actor = <пользователь>, поэтому эта проверка не мешает
+    # запуску release по тегу.
+    if: github.actor != 'github-actions[bot]'
     permissions:
       contents: write   # для авто-коммита gofmt
     steps:
@@ -41,7 +46,9 @@ jobs:
            github.event.pull_request.head.repo.full_name == github.repository)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'style: apply gofmt [skip ci]'
+          # ВАЖНО: без «[skip ci]» — иначе пуш тега на этот коммит не
+          # запустит workflow. Рекурсию отсекает if: в начале джобы test.
+          commit_message: 'style: apply gofmt'
           commit_user_name: 'github-actions[bot]'
           commit_user_email: 'github-actions[bot]@users.noreply.github.com'
 
