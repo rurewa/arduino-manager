@@ -1,7 +1,8 @@
 // Генератор иконки для Arduino-Manager.
 //
 // Запуск:
-//   go run gen_icon.go
+//
+//	go run gen_icon.go
 //
 // Результат: Icon.png (256x256, RGBA) рядом с исполняемым файлом.
 package main
@@ -34,10 +35,10 @@ func main() {
 	pinLen := 22.0
 	overlap := 12.0
 	for _, c := range []float64{90, 128, 166} {
-		fillRect(img, c-pinWid/2, 68-pinLen, pinWid, pinLen+overlap, white)       // верх
-		fillRect(img, c-pinWid/2, 188-overlap, pinWid, pinLen+overlap, white)     // низ
-		fillRect(img, 68-pinLen, c-pinWid/2, pinLen+overlap, pinWid, white)       // лево
-		fillRect(img, 188-overlap, c-pinWid/2, pinLen+overlap, pinWid, white)     // право
+		fillRect(img, c-pinWid/2, 68-pinLen, pinWid, pinLen+overlap, white)   // верх
+		fillRect(img, c-pinWid/2, 188-overlap, pinWid, pinLen+overlap, white) // низ
+		fillRect(img, 68-pinLen, c-pinWid/2, pinLen+overlap, pinWid, white)   // лево
+		fillRect(img, 188-overlap, c-pinWid/2, pinLen+overlap, pinWid, white) // право
 	}
 
 	// 3. Корпус чипа
@@ -124,9 +125,12 @@ func fillCircle(img *image.RGBA, cx, cy, r float64, c color.RGBA) {
 }
 
 func fillTriangle(img *image.RGBA, a, b, c [2]float64, col color.RGBA) {
-	a[0] *= ss; a[1] *= ss
-	b[0] *= ss; b[1] *= ss
-	c[0] *= ss; c[1] *= ss
+	a[0] *= ss
+	a[1] *= ss
+	b[0] *= ss
+	b[1] *= ss
+	c[0] *= ss
+	c[1] *= ss
 	x0 := int(math.Min(a[0], math.Min(b[0], c[0])))
 	x1 := int(math.Max(a[0], math.Max(b[0], c[0]))) + 1
 	y0 := int(math.Min(a[1], math.Min(b[1], c[1])))
@@ -179,9 +183,15 @@ func downscale(src *image.RGBA, n int) *image.RGBA {
 				gU = gP * 0xFFFF / aP
 				bU = bP * 0xFFFF / aP
 			}
-			if rU > 0xFFFF { rU = 0xFFFF }
-			if gU > 0xFFFF { gU = 0xFFFF }
-			if bU > 0xFFFF { bU = 0xFFFF }
+			if rU > 0xFFFF {
+				rU = 0xFFFF
+			}
+			if gU > 0xFFFF {
+				gU = 0xFFFF
+			}
+			if bU > 0xFFFF {
+				bU = 0xFFFF
+			}
 			dst.SetRGBA(x, y, color.RGBA{
 				R: uint8(rU >> 8),
 				G: uint8(gU >> 8),
