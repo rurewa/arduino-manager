@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,6 +30,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
+
+//go:embed internal/assets/Icon.png
+var iconBytes []byte
 
 const (
 	appID        = "local.arduino.manager.gui"
@@ -1085,7 +1089,10 @@ type App struct {
 func newApp() *App {
 	a := app.NewWithID(appID)
 
-	// Применяем сохранённую тему (по умолчанию — тёмная, как раньше).
+	// Встроенная иконка окна/дока/таскбара (см. //go:embed выше).
+	a.SetIcon(fyne.NewStaticResource("Icon.png", iconBytes))
+
+	// Применяем сохранённую тему (по умолчанию — тёмная).
 	savedTheme := a.Preferences().StringWithFallback(themePrefKey, "dark")
 	applyTheme(a, savedTheme)
 
@@ -1885,8 +1892,6 @@ func (a *App) appendLog(s string) {
 		text += fmt.Sprintf("\n[%s] %s", stamp, s)
 	}
 	a.logBox.SetText(text)
-	// MultiLineEntry does not expose a portable scroll-to-end API in every Fyne release;
-	// keeping focus here makes the latest operation visible after user interaction.
 }
 
 func main() {
