@@ -31,9 +31,10 @@ import (
 )
 
 const (
-	appID      = "local.arduino.manager.gui"
-	appTitle   = "Arduino Manager"
-	configName = ".arduino-manager.conf"
+	appID        = "local.arduino.manager.gui"
+	appTitle     = "Arduino Manager"
+	configName   = ".arduino-manager.conf"
+	themePrefKey = "ui.theme"
 )
 
 type Repo struct {
@@ -216,6 +217,43 @@ func saveConfig(c Config) error {
 	b.WriteString(fmt.Sprintf("SKETCHBOOK=%q\n", c.Sketchbook))
 	b.WriteString(fmt.Sprintf("ARDUINO_DATA=%q\n", c.ArduinoData))
 	return os.WriteFile(c.ConfigFile, []byte(b.String()), 0o600)
+}
+
+// applyTheme применяет тему по строковому режиму: "system" | "light" | "dark".
+func applyTheme(a fyne.App, mode string) {
+	switch mode {
+	case "light":
+		a.Settings().SetTheme(theme.LightTheme())
+	case "dark":
+		a.Settings().SetTheme(theme.DarkTheme())
+	default: // "system"
+		a.Settings().SetTheme(theme.DefaultTheme())
+	}
+}
+
+// themeDisplay превращает внутреннее значение ("system"/"light"/"dark")
+// в подпись, которую видит пользователь в Select.
+func themeDisplay(mode string) string {
+	switch mode {
+	case "light":
+		return "Light"
+	case "dark":
+		return "Dark"
+	default:
+		return "System"
+	}
+}
+
+// themeMode — обратное преобразование к themeDisplay.
+func themeMode(display string) string {
+	switch display {
+	case "Light":
+		return "light"
+	case "Dark":
+		return "dark"
+	default:
+		return "system"
+	}
 }
 
 // Manager contains the non-GUI implementation of the original script.
@@ -1037,6 +1075,8 @@ type App struct {
 	shortcutHint  *widget.Label
 	items         []SearchItem
 
+	themeSelect *widget.Select
+
 	busyMu   sync.Mutex
 	busy     bool
 	cancelFn context.CancelFunc
@@ -1044,7 +1084,11 @@ type App struct {
 
 func newApp() *App {
 	a := app.NewWithID(appID)
-	a.Settings().SetTheme(theme.DarkTheme())
+
+	// Применяем сохранённую тему (по умолчанию — тёмная, как раньше).
+	savedTheme := a.Preferences().StringWithFallback(themePrefKey, "dark")
+	applyTheme(a, savedTheme)
+
 	win := a.NewWindow(appTitle)
 	cfg := loadConfig()
 	manager := &Manager{Config: cfg, Client: &http.Client{Timeout: 60 * time.Second}}
@@ -1077,6 +1121,21 @@ func (a *App) cancelOperation() {
 	})
 }
 
+func (a *App) cycleTheme() {
+	if a.themeSelect == nil {
+		return
+	}
+	order := []string{"System", "Light", "Dark"}
+	idx := 0
+	for i, v := range order {
+		if v == a.themeSelect.Selected {
+			idx = i
+			break
+		}
+	}
+	a.themeSelect.SetSelected(order[(idx+1)%len(order)])
+}
+
 func (a *App) installShortcuts() {
 	c := a.win.Canvas()
 	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyF, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) {
@@ -1101,6 +1160,9 @@ func (a *App) installShortcuts() {
 		if strings.TrimSpace(a.query.Text) != "" {
 			a.search()
 		}
+	})
+	c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyT, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) {
+		a.cycleTheme()
 	})
 	// Escape has no modifier, so handle it at canvas level. Fyne delivers
 	// these events globally; when an operation is running it becomes Cancel.
@@ -1175,6 +1237,18 @@ func (a *App) build() {
 	importBtn := widget.NewButton("Import index", func() { a.importIndexDialog() })
 	repoBtn := widget.NewButton("Install GitHub repo", func() { a.installRepoDialog() })
 
+	themeSelectLabel := widget.NewLabel("Theme")
+	themeSelectLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+	a.themeSelect = widget.NewSelect([]string{"System", "Light", "Dark"}, nil)
+	a.themeSelect.SetSelected(themeDisplay(a.fyneApp.Preferences().StringWithFallback(themePrefKey, "dark")))
+	a.themeSelect.OnChanged = func(v string) {
+		mode := themeMode(v)
+		a.fyneApp.Preferences().SetString(themePrefKey, mode)
+		applyTheme(a.fyneApp, mode)
+		a.appendLog("Theme: " + v)
+	}
+
 	nav := container.NewVBox(
 		brand,
 		navHint,
@@ -1191,6 +1265,9 @@ func (a *App) build() {
 		importBtn,
 		repoBtn,
 		configBtn,
+		widget.NewSeparator(),
+		themeSelectLabel,
+		a.themeSelect,
 	)
 	sidebar := container.NewBorder(nil, nil, nil, nil, container.NewPadded(container.NewVScroll(nav)))
 	sidebarObj := newMinSizeObject(sidebar, fyne.NewSize(250, 0))
@@ -1296,7 +1373,7 @@ func (a *App) build() {
 		mainSplit.Refresh()
 	}
 
-	a.shortcutHint = widget.NewLabel("Enter = Search  •  Ctrl+F = Focus  •  Ctrl+K = Clear  •  Ctrl+1/2/3 = Mode  •  Ctrl+R = Repeat  •  Esc = Cancel")
+	a.shortcutHint = widget.NewLabel("Enter = Search  •  Ctrl+F = Focus  •  Ctrl+K = Clear  •  Ctrl+1/2/3 = Mode  •  Ctrl+R = Repeat  •  Ctrl+T = Theme  •  Esc = Cancel")
 	a.shortcutHint.TextStyle = fyne.TextStyle{Italic: true}
 	a.shortcutHint.Truncation = fyne.TextTruncateEllipsis
 	// Do not put mainSplit inside VBox: VBox gives children their MinSize,
